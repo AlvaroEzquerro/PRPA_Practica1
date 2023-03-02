@@ -13,7 +13,7 @@ from multiprocessing import Value, Array, Manager
 from random import shuffle, randint
 import time
 
-NPROD=10   #Numero de Productores
+NPROD=10  #Numero de Productores
 K=10   #Tamaño cada 'almacen' de productor
 N=20  #Cantidad de numeros que produce cada productor
     
@@ -57,6 +57,7 @@ def mi_minimo(lista):
         if elem<m:
             m=elem
             indice=ind
+    lista.remove((indice, m))
     return indice
 
 def estado_actual(almacenes, lista):
@@ -79,29 +80,41 @@ def consumidor(almacenes, indices, sprod_lst, scons_lst, smutex_lst, lista):
     Se puede añadir en cualquier lugar la funcion estado_actual y ver como
     van cambiando los almacenes y la lista final
     """
-    terminados=set()  #Indices de productores que han acabado de producir 
+    
+    terminados=set()  #Indices de productores que han acabado de producir
+    
+    "Esperamos a que todos hayan producido"
     for i in range(NPROD):
         scons_lst[i].acquire()
         
+    "Leemos todos los almacenes y tomamos el indice del minimo"   
+    aux=[] 	#Lista auxiliar para calcular el minimo en cada vuelta
+    for i in range(NPROD): 
+        valor=almacenes[i][0]
+        if valor==-1:
+            terminados.add(i)
+        else:
+            aux.append((i, valor))
+    j=mi_minimo(aux)
+      
     while len(terminados)<len(almacenes):
-        aux=[]
+        #estado_actual(almacenes, lista)
+        
+        print (f"Consumidor desalmacenando almacen {j}")
+        scons_lst[j].acquire()
+        dato=get_dato(almacenes[j], indices[j], smutex_lst[j])
+        lista.append((j, dato))
+        sprod_lst[j].release()
+        print (f"Consumidor a consumido {dato} del almacen {j}")
             
-        for i in range(NPROD):
-            if i not in terminados:
-                valor=almacenes[i][0]
-                if valor==-1:
-                    terminados.add(i)
-                else:
-                    aux.append((i, valor))
-        estado_actual(almacenes, lista)           
+        valor=almacenes[j][0]
+        if valor==-1:
+            terminados.add(j)
+        else:
+            aux.append((j, valor))
+            
         if aux!=[]:
-            j=mi_minimo(aux)
-            print (f"Consumidor desalmacenando almacen {j}")
-            scons_lst[j].acquire()
-            dato=get_dato(almacenes[j], indices[j], smutex_lst[j])
-            lista.append((j, dato))
-            sprod_lst[j].release()
-            print (f"Consumidor a consumido {dato} del almacen {j}")
+        	j=mi_minimo(aux)
         
         
             
